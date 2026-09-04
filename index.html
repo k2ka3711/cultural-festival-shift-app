@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文化祭シフト調整</title>
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
+      background: #f5f7fb;
+      color: #172033;
+    }
+
+    header {
+      background: linear-gradient(135deg, #635bff, #8b5cf6);
+      color: white;
+      padding: 24px 18px;
+      box-shadow: 0 4px 16px #0002;
+    }
+
+    header h1 {
+      margin: 0 0 5px;
+      font-size: 25px
+    }
+
+    header p {
+      margin: 0;
+      opacity: .85
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 18px
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-bottom: 18px;
+    }
+
+    .tabs button {
+      border: 0;
+      background: white;
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-weight: bold;
+      color: #667085;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tabs button.active {
+      background: #635bff;
+      color: white
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 3px 14px #17203312;
+    }
+
+    h2 {
+      font-size: 19px;
+      margin: 0 0 15px
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #d9deea;
+      border-radius: 999px;
+      font-size: 15px;
+      background: white;
+    }
+
+    .field {
+      flex: 1;
+      min-width: 150px
+    }
+
+    button.primary,
+    button.danger,
+    button.secondary {
+      border: 0;
+      border-radius: 9px;
+      padding: 11px 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #635bff;
+      color: white
+    }
+
+    .secondary {
+      background: #eef0f7;
+      color: #344054
+    }
+
+    .danger {
+      background: #fee4e2;
+      color: #b42318
+    }
+
+    button:active {
+      transform: scale(.98)
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px
+    }
+
+    th,
+    td {
+      padding: 11px;
+      border-bottom: 1px solid #eaecf0;
+      text-align: center
+    }
+
+    th {
+      background: #f8f9fc;
+      font-size: 13px
+    }
+
+    .scroll {
+      overflow: auto
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .ok {
+      background: #dcfae6;
+      color: #067647
+    }
+
+    .warn {
+      background: #fef0c7;
+      color: #b54708
+    }
+
+    .ng {
+      background: #fee4e2;
+      color: #b42318
+    }
+
+    .member {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .shift {
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .shift strong {
+      display: block;
+      margin-bottom: 7px
+    }
+
+    .choice {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .choice button {
+      padding: 9px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white
+    }
+
+    .choice button.selected {
+      background: #635bff;
+      color: white;
+      border-color: #635bff
+    }
+
+    .notice {
+      background: #fff8e6;
+      color: #8a5b00;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none
+    }
+
+    @media(max-width:600px) {
+      .container {
+        padding: 12px
+      }
+
+      .card {
+        padding: 14px
+      }
+
+      header {
+        padding: 20px 14px
+      }
+
+      .choice {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+
+  <header>
+    <h1>🎪 文化祭シフト調整</h1>
+    <p id="eventInfo">みんなの参加可能時間を集めてシフトを決めよう！</p>
+  </header>
+
+  <div class="container">
+
+    <div class="tabs">
+      <button class="active" onclick="showTab('schedule',this)">📅 シフト表</button>
+      <button onclick="showTab('availability',this)">🙋 希望入力</button>
+      <button onclick="showTab('members',this)">👥 メンバー</button>
+      <button onclick="showTab('settings',this)">⚙️ 設定</button>
+    </div>
+
+    <section id="schedule">
+      <div class="card">
+        <h2>📅 シフト表</h2>
+        <div id="scheduleWarning"></div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>時間</th>
+                <th>担当メンバー</th>
+                <th>人数</th>
+                <th>状態</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="availability" class="hidden">
+      <div class="card">
+        <h2>🙋 参加希望を入力</h2>
+
+        <div class="field" style="margin-bottom:15px">
+          <label>あなたの名前</label>
+          <select id="personSelect" onchange="renderAvailability()"></select>
+        </div>
+
+        <div class="notice">
+          🟢 参加できる 🟡 できれば参加 🔴 参加できない
+        </div>
+
+        <div id="availabilityList"></div>
+      </div>
+    </section>
+
+    <section id="members" class="hidden">
+      <div class="card">
+        <h2>👥 メンバー管理</h2>
+
+        <div class="row">
+          <div class="field">
+            <input id="memberName" placeholder="名前を入力">
+          </div>
+          <button class="primary" onclick="addMember()">追加</button>
+        </div>
+
+        <div id="memberList" style="margin-top:15px"></div>
+      </div>
+    </section>
+
+    <section id="settings" class="hidden">
+      <div class="card">
+        <h2>⚙️ 文化祭設定</h2>
+
+        <div class="row">
+          <div class="field">
+            <label>文化祭名</label>
+            <input id="eventName">
+          </div>
+          <div class="field">
+            <label>必要人数 / 時間帯</label>
+            <input id="required" type="number" min="1">
+          </div>
+        </div>
+
+        <br>
+
+        <div class="row">
+          <div class="field">
+            <label>開始時刻</label>
+            <input id="startTime" type="time">
+          </div>
+          <div class="field">
+            <label>終了時刻</label>
+            <input id="endTime" type="time">
+          </div>
+          <div class="field">
+            <label>1シフトの長さ</label>
+            <select id="slotLength">
+              <option value="30">30分</option>
+              <option value="60">1時間</option>
+              <option value="90">1時間30分</option>
+              <option value="120">2時間</option>
+            </select>
+          </div>
+        </div>
+
+        <br>
+        <button class="primary" onclick="saveSettings()">設定を保存</button>
+        <button class="danger" onclick="resetAll()" style="margin-left:8px">全データ削除</button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCT2fVpoimu0o0kw6JCEBOqU_dYg0O2rtM",
+      authDomain: "cultural-festival-5d41f.firebaseapp.com",
+      projectId: "cultural-festival-5d41f",
+      storageBucket: "cultural-festival-5d41f.firebasestorage.app",
+      messagingSenderId: "422942467985",
+      appId: "1:422942467985:web:a2bc0175465ec71ade5c30"
+    };
+
+    // Firebase の初期化
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const docRef = db.collection("shifts").doc("mainData");
+
+    const defaultData = {
+      eventName: "文化祭2026",
+      required: 2,
+      startTime: "10:00",
+      endTime: "15:00",
+      slotLength: 30,
+      members: ["1_asada", "1_kato", "1_kamimura", "1_kamimura", "2_kondo", "2_hamada", "2_tomoda", "2_sato", "2_ueno", "t_fukami"],
+      availability: {}
+    };
+
+    let data = defaultData;
+
+    // クラウド上のデータ変更を検知してリアルタイム更新する処理
+    docRef.onSnapshot((doc) => {
+      if (doc.exists) {
+        data = doc.data();
+      } else {
+        docRef.set(defaultData);
+        data = defaultData;
+      }
+      refreshAllUI();
+    });
+
+    // Firestore にデータを保存
+    function save() {
+      docRef.set(data);
+    }
+
+    function refreshAllUI() {
+      loadSettings();
+      renderMembers();
+      renderPersonSelect();
+      renderAvailability();
+      renderSchedule();
+    }
+
+    function showTab(id, btn) {
+      document.querySelectorAll("section").forEach(x => x.classList.add("hidden"));
+      document.getElementById(id).classList.remove("hidden");
+
+      document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+      btn.classList.add("active");
+
+      if (id === "schedule") renderSchedule();
+      if (id === "availability") {
+        renderPersonSelect();
+        renderAvailability();
+      }
+      if (id === "members") renderMembers();
+    }
+
+    function makeSlots() {
+      const slots = [];
+      let [h, m] = data.startTime.split(":").map(Number);
+      const [eh, em] = data.endTime.split(":").map(Number);
+      let cur = h * 60 + m;
+      const end = eh * 60 + em;
+
+      while (cur < end) {
+        let next = Math.min(cur + Number(data.slotLength), end);
+        const fmt = x => String(Math.floor(x / 60)).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0");
+        slots.push(fmt(cur) + " - " + fmt(next));
+        cur = next;
+      }
+      return slots;
+    }
+
+    function addMember() {
+      const input = document.getElementById("memberName");
+      const name = input.value.trim();
+
+      if (!name) return;
+      if (data.members.includes(name)) {
+        alert("その名前はすでに登録されています");
+        return;
+      }
+
+      data.members.push(name);
+      if (!data.availability) data.availability = {};
+      data.availability[name] = {};
+      input.value = "";
+      save();
+    }
+
+    function removeMember(name) {
+      if (!confirm(name + " さんを削除しますか？")) return;
+
+      data.members = data.members.filter(x => x !== name);
+      if (data.availability) delete data.availability[name];
+      save();
+    }
+
+    function renderMembers() {
+      const el = document.getElementById("memberList");
+
+      if (!data.members || !data.members.length) {
+        el.innerHTML = "<p>メンバーが登録されていません。</p>";
+        return;
+      }
+
+      el.innerHTML = data.members.map(name => `
+    <div class="member">
+      <span>👤 ${escapeHtml(name)}</span>
+      <button class="danger" onclick="removeMember('${escapeAttr(name)}')">削除</button>
+    </div>
+  `).join("");
+    }
+
+    function renderPersonSelect() {
+      const el = document.getElementById("personSelect");
+      const current = el.value;
+
+      if (!data.members) return;
+
+      el.innerHTML = data.members.map(name =>
+        `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`
+      ).join("");
+
+      if (data.members.includes(current)) el.value = current;
+    }
+
+    function renderAvailability() {
+      const personSelect = document.getElementById("personSelect");
+      if (!personSelect) return;
+      const person = personSelect.value;
+      const el = document.getElementById("availabilityList");
+
+      if (!person) {
+        el.innerHTML = "<p>先にメンバーを登録してください。</p>";
+        return;
+      }
+
+      if (!data.availability) data.availability = {};
+      if (!data.availability[person]) data.availability[person] = {};
+
+      el.innerHTML = makeSlots().map(slot => {
+        const value = data.availability[person][slot] || "no";
+
+        return `
+      <div class="shift">
+        <strong>⏰ ${slot}</strong>
+        <div class="choice">
+          <button class="${value === "yes" ? "selected" : ""}"
+            onclick="setAvailability('${escapeAttr(person)}','${escapeAttr(slot)}','yes')">
+            🟢 参加できる
+          </button>
+          <button class="${value === "maybe" ? "selected" : ""}"
+            onclick="setAvailability('${escapeAttr(person)}','${escapeAttr(slot)}','maybe')">
+            🟡 できれば参加
+          </button>
+          <button class="${value === "no" ? "selected" : ""}"
+            onclick="setAvailability('${escapeAttr(person)}','${escapeAttr(slot)}','no')">
+            🔴 参加できない
+          </button>
+        </div>
+      </div>
+    `;
+      }).join("");
+    }
+
+    function setAvailability(person, slot, value) {
+      if (!data.availability) data.availability = {};
+      if (!data.availability[person]) data.availability[person] = {};
+      data.availability[person][slot] = value;
+      save();
+    }
+
+    function renderSchedule() {
+      document.getElementById("eventInfo").textContent =
+        (data.eventName || "文化祭") + " ｜ 必要人数 " + (data.required || 1) + "人";
+
+      const body = document.getElementById("scheduleBody");
+      const warning = document.getElementById("scheduleWarning");
+
+      let warnings = [];
+
+      body.innerHTML = makeSlots().map(slot => {
+        const available = (data.members || []).filter(name =>
+          data.availability && data.availability[name] &&
+          (data.availability[name][slot] === "yes" ||
+            data.availability[name][slot] === "maybe")
+        );
+
+        const confirmed = (data.members || []).filter(name =>
+          data.availability && data.availability[name] &&
+          data.availability[name][slot] === "yes"
+        );
+
+        const count = confirmed.length;
+
+        let status;
+        if (count >= data.required) {
+          status = `<span class="badge ok">充足</span>`;
+        } else if (available.length >= data.required) {
+          status = `<span class="badge warn">調整可能</span>`;
+          warnings.push(slot + "：確定 " + count + "人");
+        } else {
+          status = `<span class="badge ng">不足</span>`;
+          warnings.push(slot + "：必要 " + data.required + "人");
+        }
+
+        const names = confirmed.length
+          ? confirmed.map(x => "👤 " + escapeHtml(x)).join(" ")
+          : "<span style='color:#98a2b3'>未確定</span>";
+
+        return `
+      <tr>
+        <td><strong>${slot}</strong></td>
+        <td>${names}</td>
+        <td>${count} / ${data.required}</td>
+        <td>${status}</td>
+      </tr>
+    `;
+      }).join("");
+
+      if (warnings.length) {
+        warning.innerHTML = `
+      <div class="notice">
+        ⚠️ <strong>要確認：</strong> ${warnings.join(" / ")}
+      </div>
+    `;
+      } else {
+        warning.innerHTML = `
+      <div class="notice" style="background:#ecfdf3;color:#067647">
+        ✅ すべての時間帯で必要人数を満たしています！
+      </div>
+    `;
+      }
+    }
+
+    function saveSettings() {
+      data.eventName = document.getElementById("eventName").value.trim() || "文化祭";
+      data.required = Math.max(1, Number(document.getElementById("required").value) || 1);
+      data.startTime = document.getElementById("startTime").value;
+      data.endTime = document.getElementById("endTime").value;
+      data.slotLength = Number(document.getElementById("slotLength").value);
+
+      if (data.startTime >= data.endTime) {
+        alert("終了時刻は開始時刻より後にしてください");
+        return;
+      }
+
+      save();
+      alert("設定を保存しました！");
+    }
+
+    function loadSettings() {
+      document.getElementById("eventName").value = data.eventName || "文化祭";
+      document.getElementById("required").value = data.required || 2;
+      document.getElementById("startTime").value = data.startTime || "10:00";
+      document.getElementById("endTime").value = data.endTime || "15:00";
+      document.getElementById("slotLength").value = data.slotLength || 60;
+    }
+
+    function resetAll() {
+      if (!confirm("すべてのデータを初期化します。本当によろしいですか？")) return;
+      docRef.set(defaultData);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    function escapeAttr(str) {
+      return String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+  </script>
+
+</body>
+
+</html>
